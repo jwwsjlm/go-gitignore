@@ -343,7 +343,7 @@ func TestMatchesLineNumbers(t *testing.T) {
 	object := CompileIgnoreLines(gitIgnore...)
 
 	var matchesPath bool
-	var reason *IgnorePattern
+	var reason *Pattern
 
 	// /foo
 	matchesPath, reason = object.MatchesPathHow("foo/bar.wat")

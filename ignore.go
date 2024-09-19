@@ -2,7 +2,6 @@
 package ignore
 
 import (
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -10,10 +9,10 @@ import (
 
 ////////////////////////////////////////////////////////////
 
-// IgnoreParser is an interface with `MatchesPaths`.
-type IgnoreParser interface {
+// Parser is an interface with `MatchesPaths`.
+type Parser interface {
 	MatchesPath(f string) bool
-	MatchesPathHow(f string) (bool, *IgnorePattern)
+	MatchesPathHow(f string) (bool, *Pattern)
 }
 
 ////////////////////////////////////////////////////////////
@@ -48,12 +47,12 @@ func getPatternFromLine(line string) (*regexp.Regexp, bool) {
 
 	// Handle [Rule 2, 4], when # or ! is escaped with a \
 	// Handle [Rule 4] once we tag negatePattern, strip the leading ! char
-	if regexp.MustCompile(`^(\#|\!)`).MatchString(line) {
+	if regexp.MustCompile(`^([#!])`).MatchString(line) {
 		line = line[1:]
 	}
 
 	// If we encounter a foo/*.blah in a folder, prepend the / char
-	if regexp.MustCompile(`([^\/+])/.*\*\.`).MatchString(line) && line[0] != '/' {
+	if regexp.MustCompile(`([^/+])/.*\*\.`).MatchString(line) && line[0] != '/' {
 		line = "/" + line
 	}
 
@@ -98,8 +97,8 @@ func getPatternFromLine(line string) (*regexp.Regexp, bool) {
 
 ////////////////////////////////////////////////////////////
 
-// IgnorePattern encapsulates a pattern and if it is a negated pattern.
-type IgnorePattern struct {
+// Pattern encapsulates a pattern and if it is a negated pattern.
+type Pattern struct {
 	Pattern *regexp.Regexp
 	Negate  bool
 	LineNo  int
@@ -108,7 +107,7 @@ type IgnorePattern struct {
 
 // GitIgnore wraps a list of ignore pattern.
 type GitIgnore struct {
-	patterns []*IgnorePattern
+	patterns []*Pattern
 }
 
 // CompileIgnoreLines accepts a variadic set of strings, and returns a GitIgnore
@@ -120,7 +119,7 @@ func CompileIgnoreLines(lines ...string) *GitIgnore {
 		pattern, negatePattern := getPatternFromLine(line)
 		if pattern != nil {
 			// LineNo is 1-based numbering to match `git check-ignore -v` output
-			ip := &IgnorePattern{pattern, negatePattern, i + 1, line}
+			ip := &Pattern{pattern, negatePattern, i + 1, line}
 			gi.patterns = append(gi.patterns, ip)
 		}
 	}
@@ -143,7 +142,7 @@ func CompileIgnoreFile(fpath string) (*GitIgnore, error) {
 // lines out of the file and invokes the CompileIgnoreLines method with
 // additional lines.
 func CompileIgnoreFileAndLines(fpath string, lines ...string) (*GitIgnore, error) {
-	bs, err := ioutil.ReadFile(fpath)
+	bs, err := os.ReadFile(fpath)
 	if err != nil {
 		return nil, err
 	}
@@ -163,13 +162,13 @@ func (gi *GitIgnore) MatchesPath(f string) bool {
 
 // MatchesPathHow returns true, `pattern` if the given GitIgnore structure would target
 // a given path string `f`.
-// The IgnorePattern has the Line, LineNo fields.
-func (gi *GitIgnore) MatchesPathHow(f string) (bool, *IgnorePattern) {
+// The Pattern has the Line, LineNo fields.
+func (gi *GitIgnore) MatchesPathHow(f string) (bool, *Pattern) {
 	// Replace OS-specific path separator.
 	f = strings.Replace(f, string(os.PathSeparator), "/", -1)
 
 	matchesPath := false
-	var mip *IgnorePattern
+	var mip *Pattern
 	for _, ip := range gi.patterns {
 		if ip.Pattern.MatchString(f) {
 			// If this is a regular target (not negated with a gitignore
