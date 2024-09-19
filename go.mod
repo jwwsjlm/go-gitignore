@@ -1,4 +1,4 @@
-module github.com/sabhiram/go-gitignore
+module github.com/jwwsjlm/go-gitignore
 
 go 1.23
 
